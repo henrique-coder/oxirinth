@@ -77,7 +77,7 @@ pub struct CacheConfig {
     pub version_list_ttl_secs: u32,
     /// Fresh TTL in seconds for `/v3/version/*` and `/v3/version_file/*` responses.
     pub version_ttl_secs: u32,
-    /// Fresh TTL in seconds for tag metadata (`/v3/tag/*` and documented `/v2/tag/*` fallbacks).
+    /// Fresh TTL in seconds for tag and metadata routes (`/v3/tag/*`, `/v3/license`, `/v3/loader_field`).
     pub tag_ttl_secs: u32,
 }
 

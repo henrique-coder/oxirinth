@@ -1,3 +1,4 @@
+use serde::Serialize;
 use url::Url;
 
 use crate::config::CacheConfig;
@@ -109,7 +110,7 @@ pub fn project_check(base: &Url, id_or_slug: &str) -> Result<RouteRequest, Engin
     })
 }
 
-/// Build `GET /v3/project/{id_or_slug}/version` with optional loader, game version, and featured filters.
+/// Build `GET /v3/project/{id_or_slug}/version` with optional loader, game version (`loader_fields`), and featured filters.
 pub fn project_versions(
     base: &Url,
     id_or_slug: &str,
@@ -120,16 +121,16 @@ pub fn project_versions(
     let mut url = build_endpoint_url(base, &["v3", "project", id_or_slug, "version"])?;
 
     let featured_str = featured.map(|val| if val { "true" } else { "false" });
-    let game_versions_json = serialize_filter_array(game_versions)?;
+    let loader_fields_json = serialize_game_version_loader_fields(game_versions)?;
     let loaders_json = serialize_filter_array(loaders)?;
 
-    if featured_str.is_some() || game_versions_json.is_some() || loaders_json.is_some() {
+    if featured_str.is_some() || loader_fields_json.is_some() || loaders_json.is_some() {
         let mut pairs = url.query_pairs_mut();
         if let Some(val) = featured_str {
             pairs.append_pair("featured", val);
         }
-        if let Some(val) = &game_versions_json {
-            pairs.append_pair("game_versions", val);
+        if let Some(val) = &loader_fields_json {
+            pairs.append_pair("loader_fields", val);
         }
         if let Some(val) = &loaders_json {
             pairs.append_pair("loaders", val);
@@ -270,59 +271,58 @@ pub fn tag_categories(base: &Url) -> Result<RouteRequest, EngineError> {
     })
 }
 
-// ---------------------------------------------------------------------------
-// Documented `/v2` tag fallbacks (see `docs/api/v3-endpoints.md`).
-// Re-verify against `/v3/tag/*` on every release check.
-// ---------------------------------------------------------------------------
-
-/// Build `GET /v2/tag/game_version` (documented v2 fallback; `/v3/tag/game_version` returns 404).
+/// Build `GET /v3/loader_field?loader_field=game_versions`.
 pub fn tag_game_versions(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "game_version"])?;
+    let mut url = build_endpoint_url(base, &["v3", "loader_field"])?;
+    url.query_pairs_mut()
+        .append_pair("loader_field", "game_versions");
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
     })
 }
 
-/// Build `GET /v2/tag/license` (documented v2 fallback; `/v3/tag/license` returns 404).
+/// Build `GET /v3/license`.
 pub fn tag_licenses(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "license"])?;
+    let url = build_endpoint_url(base, &["v3", "license"])?;
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
     })
 }
 
-/// Build `GET /v2/tag/project_type` (documented v2 fallback; `/v3/tag/project_type` returns 404).
+/// Build `GET /v3/project_type`.
 pub fn tag_project_types(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "project_type"])?;
+    let url = build_endpoint_url(base, &["v3", "project_type"])?;
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
     })
 }
 
-/// Build `GET /v2/tag/donation_platform` (documented v2 fallback; `/v3/tag/donation_platform` returns 404).
+/// Build `GET /v3/link_platform` (v3 replacement for v2 `donation_platform` tags).
 pub fn tag_donation_platforms(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "donation_platform"])?;
+    let url = build_endpoint_url(base, &["v3", "link_platform"])?;
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
     })
 }
 
-/// Build `GET /v2/tag/report_type` (documented v2 fallback; `/v3/tag/report_type` returns 404).
+/// Build `GET /v3/report_type`.
 pub fn tag_report_types(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "report_type"])?;
+    let url = build_endpoint_url(base, &["v3", "report_type"])?;
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
     })
 }
 
-/// Build `GET /v2/tag/side_type` (documented v2 fallback; `/v3/tag/side_type` returns 404).
+/// Build `GET /v3/loader_field?loader_field=environment`.
 pub fn tag_side_types(base: &Url) -> Result<RouteRequest, EngineError> {
-    let url = build_endpoint_url(base, &["v2", "tag", "side_type"])?;
+    let mut url = build_endpoint_url(base, &["v3", "loader_field"])?;
+    url.query_pairs_mut()
+        .append_pair("loader_field", "environment");
     Ok(RouteRequest {
         url,
         tier: CacheTier::Tag,
@@ -353,8 +353,13 @@ fn build_endpoint_url(base: &Url, segments: &[&str]) -> Result<Url, EngineError>
     Ok(url)
 }
 
-fn serialize_batch_ids(ids: &[String], resource_label: &str) -> Result<String, EngineError> {
-    let mut cleaned: Vec<&str> = ids
+#[derive(Serialize)]
+struct GameVersionLoaderFields<'a> {
+    game_versions: &'a [&'a str],
+}
+
+fn normalize_unique_values(values: &[String]) -> Vec<&str> {
+    let mut cleaned: Vec<&str> = values
         .iter()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
@@ -362,6 +367,11 @@ fn serialize_batch_ids(ids: &[String], resource_label: &str) -> Result<String, E
 
     cleaned.sort_unstable();
     cleaned.dedup();
+    cleaned
+}
+
+fn serialize_batch_ids(ids: &[String], resource_label: &str) -> Result<String, EngineError> {
+    let cleaned = normalize_unique_values(ids);
 
     if cleaned.is_empty() {
         return Err(EngineError::Config(format!(
@@ -380,22 +390,31 @@ fn serialize_batch_ids(ids: &[String], resource_label: &str) -> Result<String, E
 }
 
 fn serialize_filter_array(values: &[String]) -> Result<Option<String>, EngineError> {
-    let mut cleaned: Vec<&str> = values
-        .iter()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let cleaned = normalize_unique_values(values);
 
     if cleaned.is_empty() {
         return Ok(None);
     }
 
-    cleaned.sort_unstable();
-    cleaned.dedup();
-
     serde_json::to_string(&cleaned)
         .map(Some)
         .map_err(|err| EngineError::Serialization(err.to_string()))
+}
+
+fn serialize_game_version_loader_fields(
+    game_versions: &[String],
+) -> Result<Option<String>, EngineError> {
+    let cleaned = normalize_unique_values(game_versions);
+
+    if cleaned.is_empty() {
+        return Ok(None);
+    }
+
+    serde_json::to_string(&GameVersionLoaderFields {
+        game_versions: &cleaned,
+    })
+    .map(Some)
+    .map_err(|err| EngineError::Serialization(err.to_string()))
 }
 
 #[cfg(test)]
@@ -469,7 +488,7 @@ mod tests {
     }
 
     #[test]
-    fn builds_batch_and_version_file_and_v2_fallbacks() {
+    fn builds_batch_version_filters_and_v3_tag_routes() {
         let batch = projects(
             &base(),
             &[
@@ -484,6 +503,30 @@ mod tests {
         assert_eq!(
             batch.url.query_pairs().next().unwrap().1,
             r#"["luckperms","sodium"]"#
+        );
+
+        let versions_req = project_versions(
+            &base(),
+            "sodium",
+            &["fabric".to_owned()],
+            &["1.21.1".to_owned()],
+            Some(true),
+        )
+        .unwrap();
+        assert_eq!(versions_req.tier, CacheTier::VersionList);
+        assert_eq!(versions_req.url.path(), "/v3/project/sodium/version");
+        let version_pairs: Vec<(String, String)> =
+            versions_req.url.query_pairs().into_owned().collect();
+        assert_eq!(
+            version_pairs,
+            vec![
+                ("featured".to_owned(), "true".to_owned()),
+                (
+                    "loader_fields".to_owned(),
+                    r#"{"game_versions":["1.21.1"]}"#.to_owned()
+                ),
+                ("loaders".to_owned(), r#"["fabric"]"#.to_owned()),
+            ]
         );
 
         let hash_req = version_file(&base(), "abcdef0123456789", "SHA512").unwrap();
@@ -505,14 +548,27 @@ mod tests {
             tag_categories(&base()).unwrap().url.path(),
             "/v3/tag/category"
         );
-        assert_eq!(
-            tag_game_versions(&base()).unwrap().url.path(),
-            "/v2/tag/game_version"
-        );
-        assert_eq!(tag_licenses(&base()).unwrap().url.path(), "/v2/tag/license");
+
+        let gv_route = tag_game_versions(&base()).unwrap();
+        assert_eq!(gv_route.url.path(), "/v3/loader_field");
+        assert_eq!(gv_route.url.query(), Some("loader_field=game_versions"));
+
+        assert_eq!(tag_licenses(&base()).unwrap().url.path(), "/v3/license");
         assert_eq!(
             tag_project_types(&base()).unwrap().url.path(),
-            "/v2/tag/project_type"
+            "/v3/project_type"
         );
+        assert_eq!(
+            tag_donation_platforms(&base()).unwrap().url.path(),
+            "/v3/link_platform"
+        );
+        assert_eq!(
+            tag_report_types(&base()).unwrap().url.path(),
+            "/v3/report_type"
+        );
+
+        let env_route = tag_side_types(&base()).unwrap();
+        assert_eq!(env_route.url.path(), "/v3/loader_field");
+        assert_eq!(env_route.url.query(), Some("loader_field=environment"));
     }
 }

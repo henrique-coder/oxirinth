@@ -358,7 +358,7 @@ async fn retries_transient_503_and_recovers_from_429() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/v2/tag/license"))
+        .and(path("/v3/license"))
         .respond_with(SequenceResponder {
             attempts: AtomicUsize::new(0),
             first_status: 429,

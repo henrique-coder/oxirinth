@@ -323,19 +323,19 @@ impl Engine {
         self.pipeline.get_json(&route).await
     }
 
-    /// Fetch game version tags via documented fallback `GET /v2/tag/game_version`.
+    /// Fetch game version tags via `GET /v3/loader_field?loader_field=game_versions`.
     pub async fn get_tag_game_versions(&self) -> Result<Bytes, EngineError> {
         let route = routes::tag_game_versions(&self.config.base_url)?;
         self.pipeline.get_json(&route).await
     }
 
-    /// Fetch license tags via documented fallback `GET /v2/tag/license`.
+    /// Fetch license tags via `GET /v3/license`.
     pub async fn get_tag_licenses(&self) -> Result<Bytes, EngineError> {
         let route = routes::tag_licenses(&self.config.base_url)?;
         self.pipeline.get_json(&route).await
     }
 
-    /// Fetch project type tags via documented fallback `GET /v2/tag/project_type`.
+    /// Fetch project type tags via `GET /v3/project_type`.
     pub async fn get_tag_project_types(&self) -> Result<Bytes, EngineError> {
         let route = routes::tag_project_types(&self.config.base_url)?;
         self.pipeline.get_json(&route).await
