@@ -1,0 +1,39 @@
+# Directories: repository metadata, local tools, and environments
+.git/
+.claude/
+.debug/
+.gemini/
+.idea/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.vscode/
+__pycache__/
+node_modules/
+
+# Directories: generated content, Rust targets, and distribution artifacts
+.cache/
+.superpowers/
+/target/
+build/
+dist/
+reports/
+site/
+wheels/
+
+# Named files and file patterns
+example*.py
+
+# Extensions and generated file suffixes
+**/*.rs.bk
+*.bak
+*.egg-info/
+*.env
+*.log
+*.py[cod]
+*.redb
+*.tmp
+src/oxirinth/*.dylib
+src/oxirinth/*.pyd
+src/oxirinth/*.so

@@ -1,0 +1,14 @@
+# Directories: generated output
+.cache/
+.superpowers/
+reports/
+site/
+target/
+
+# Dependency lockfiles
+Cargo.lock
+pnpm-lock.yaml
+uv.lock
+
+# Editor settings
+.editorconfig

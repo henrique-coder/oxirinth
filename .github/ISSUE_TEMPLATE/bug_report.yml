@@ -1,0 +1,78 @@
+name: Bug report
+description: Report reproducible behavior that appears to be broken.
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not include Modrinth Personal Access Tokens, Authorization headers, or local cache files.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest Python code sample that reproduces the issue.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Error output
+      description: Paste the full traceback or response error with secrets removed.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: "MAJOR.MINOR.PATCH"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.11.x, 3.12.x, 3.13.x, 3.14.x, or 3.15.x"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and architecture
+      placeholder: "Ubuntu 24.04 x86_64, macOS 15 arm64, Windows 11 x64, musllinux, etc."
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      multiple: true
+      options:
+        - Sync client (Oxirinth)
+        - Async client (AsyncOxirinth)
+        - Pydantic models
+        - Cache / rate limiter
+        - Packaging / wheels
+        - Documentation
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I am using the latest available version.
+          required: true
+        - label: I removed all API keys, tokens, and private project data from this issue.
+          required: true
+        - label: I searched existing issues before opening this report.
+          required: true
