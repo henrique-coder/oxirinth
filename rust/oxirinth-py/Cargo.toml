@@ -15,7 +15,9 @@ crate-type = ["cdylib"]
 workspace = true
 
 [dependencies]
+bytes = { workspace = true }
 oxirinth-engine = { path = "../oxirinth-engine" }
 pyo3 = { workspace = true }
 pyo3-async-runtimes = { workspace = true }
 tokio = { workspace = true }
+url = { workspace = true }
