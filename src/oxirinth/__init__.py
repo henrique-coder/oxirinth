@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from oxirinth._core import __version__, engine_version
 from oxirinth.client import AsyncOxirinth, Oxirinth
-from oxirinth.config import CacheConfig, Environment, HashAlgorithm, SortIndex
+from oxirinth.config import (
+    DEFAULT_USER_AGENT,
+    CacheConfig,
+    Environment,
+    HashAlgorithm,
+    SortIndex,
+    build_user_agent,
+)
 from oxirinth.exceptions import (
     OxirinthAPIError,
     OxirinthAuthError,
@@ -80,6 +87,7 @@ from oxirinth.models import (
 
 
 __all__: list[str] = [
+    "DEFAULT_USER_AGENT",
     "AsyncDataPack",
     "AsyncMod",
     "AsyncModpack",
@@ -155,5 +163,6 @@ __all__: list[str] = [
     "Version",
     "VersionFile",
     "__version__",
+    "build_user_agent",
     "engine_version",
 ]

@@ -10,7 +10,7 @@
 - **Production Base URL:** `https://api.modrinth.com`
 - **Staging Base URL:** `https://staging-api.modrinth.com`
 - **Request Headers:**
-  - `User-Agent` _(strongly recommended)_: Descriptive client identifier with contact URL or email (e.g., `oxirinth/0.1.0 (https://github.com/henrique-coder/oxirinth)` or caller-supplied custom string).
+  - `User-Agent` _(strongly recommended)_: Descriptive client identifier following Modrinth's `github_username/project_name/version (contact)` format (defaults to `henrique-coder/oxirinth/0.1.0 (https://github.com/henrique-coder/oxirinth)` or a custom value via `build_user_agent()`).
   - `Authorization` _(optional)_: Personal Access Token (`api_key`) attached verbatim to lift authenticated quota / access scopes. Never persisted to disk cache keys or emitted in logs.
 - **Response Headers Used by `oxirinth-engine`:**
   - `X-Ratelimit-Limit`: Window quota (default `300` requests/minute per IP).

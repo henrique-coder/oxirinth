@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 from oxirinth import (
+    DEFAULT_USER_AGENT,
     AsyncOxirinth,
     AsyncPlugin,
     AsyncServer,
@@ -23,6 +24,7 @@ from oxirinth import (
     ResourcePack,
     Server,
     Shader,
+    build_user_agent,
 )
 
 
@@ -183,12 +185,17 @@ def _resolve_mock_route(path: str, qs: dict[str, list[str]]) -> tuple[int, Any]:
 
 
 @pytest.fixture
-def mock_api_url() -> Iterator[str]:
+def mock_api_with_headers() -> Iterator[tuple[str, list[str]]]:
+    observed_user_agents: list[str] = []
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
             return
 
         def do_GET(self) -> None:
+            ua = self.headers.get("User-Agent")
+            if ua is not None:
+                observed_user_agents.append(ua)
             parsed = urlparse(self.path)
             qs = parse_qs(parsed.query)
             status, payload = _resolve_mock_route(parsed.path, qs)
@@ -203,10 +210,28 @@ def mock_api_url() -> Iterator[str]:
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}"
+        yield f"http://127.0.0.1:{server.server_port}", observed_user_agents
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.fixture
+def mock_api_url(mock_api_with_headers: tuple[str, list[str]]) -> str:
+    return mock_api_with_headers[0]
+
+
+def test_default_and_custom_user_agent_header(mock_api_with_headers: tuple[str, list[str]], tmp_path: Path):
+    base_url, user_agents = mock_api_with_headers
+
+    with Oxirinth(base_url=base_url, cache=CacheConfig(enabled=False)) as default_client:
+        default_client.get_mod("sodium")
+
+    custom_ua = build_user_agent("packwiz-sync", "2.0.0", author="demo", contact="ops@example.com")
+    with Oxirinth(user_agent=custom_ua, base_url=base_url, cache=CacheConfig(cache_dir=tmp_path)) as custom_client:
+        custom_client.get_mod("sodium")
+
+    assert user_agents == [DEFAULT_USER_AGENT, custom_ua]
 
 
 def test_sync_client_all_domains_and_helpers(mock_api_url: str, tmp_path: Path):

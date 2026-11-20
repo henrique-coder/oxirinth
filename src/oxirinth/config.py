@@ -1,4 +1,4 @@
-"""Typed configuration models and literal aliases for Oxirinth."""
+"""Typed configuration models, User-Agent builder, and literal aliases for Oxirinth."""
 
 from __future__ import annotations
 
@@ -7,12 +7,16 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from oxirinth._core import DEFAULT_USER_AGENT, OxirinthConfigError
+
 
 __all__: list[str] = [
+    "DEFAULT_USER_AGENT",
     "CacheConfig",
     "Environment",
     "HashAlgorithm",
     "SortIndex",
+    "build_user_agent",
 ]
 
 SortIndex = Literal["relevance", "downloads", "follows", "newest", "updated"]
@@ -25,6 +29,49 @@ Environment = Literal[
     "unknown",
 ]
 HashAlgorithm = Literal["sha512", "sha1"]
+
+
+def _validate_ua_part(value: str, label: str) -> str:
+    cleaned = value.strip()
+    if not cleaned or any(ord(ch) < 32 or ord(ch) == 127 for ch in cleaned):
+        msg = f"{label} must be non-empty and contain no control characters"
+        raise OxirinthConfigError(msg)
+    return cleaned
+
+
+def build_user_agent(
+    project: str,
+    version: str,
+    *,
+    author: str | None = None,
+    contact: str | None = None,
+) -> str:
+    """Format a Modrinth-compliant ``User-Agent`` header string.
+
+    Modrinth recommends ``github_username/project_name/version (contact_info)`` so
+    maintainers can identify and reach out to API consumers cleanly.
+
+    Args:
+        project: Application or library name.
+        version: Application or library version string.
+        author: Optional GitHub username, organization, or vendor prefix.
+        contact: Optional contact email or repository URL placed in parentheses.
+
+    Returns:
+        Formatted ``User-Agent`` string validated for HTTP header safety.
+    """
+    clean_project = _validate_ua_part(project, "project")
+    clean_version = _validate_ua_part(version, "version")
+
+    prefix = (
+        f"{_validate_ua_part(author, 'author')}/{clean_project}/{clean_version}"
+        if author is not None
+        else f"{clean_project}/{clean_version}"
+    )
+
+    if contact is not None:
+        return f"{prefix} ({_validate_ua_part(contact, 'contact')})"
+    return prefix
 
 
 class CacheConfig(BaseModel):

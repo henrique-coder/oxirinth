@@ -18,6 +18,10 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     runtime::init_runtime()?;
 
     m.add("__version__", oxirinth_engine::ENGINE_VERSION)?;
+    m.add(
+        "DEFAULT_USER_AGENT",
+        oxirinth_engine::config::default_user_agent(),
+    )?;
     m.add_function(wrap_pyfunction!(engine_version, m)?)?;
     errors::register_exceptions(m.py(), m)?;
     m.add_class::<PyCacheStats>()?;

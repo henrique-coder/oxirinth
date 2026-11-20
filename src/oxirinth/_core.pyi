@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import final
 
 __all__ = [
+    "DEFAULT_USER_AGENT",
     "AsyncCore",
     "CacheStats",
     "OxirinthAPIError",
@@ -24,6 +25,7 @@ __all__ = [
 ]
 
 __version__: str
+DEFAULT_USER_AGENT: str
 
 def engine_version() -> str:
     """Return the compiled oxirinth-engine semantic version."""

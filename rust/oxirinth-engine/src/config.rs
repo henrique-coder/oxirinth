@@ -10,10 +10,14 @@ use crate::error::EngineError;
 /// Default Modrinth production base URL.
 pub const DEFAULT_BASE_URL: &str = "https://api.modrinth.com";
 
-/// Default `User-Agent` header sent to Modrinth API v3.
+/// Canonical project repository URL included in the default `User-Agent`.
+pub const REPOSITORY_URL: &str = "https://github.com/henrique-coder/oxirinth";
+
+/// Default `User-Agent` header formatted per Modrinth's API guidelines:
+/// `github_username/project_name/version (contact_or_repo_url)`.
 pub fn default_user_agent() -> String {
     format!(
-        "oxirinth/{} (https://github.com/henrique-coder/oxirinth)",
+        "henrique-coder/oxirinth/{} ({REPOSITORY_URL})",
         crate::ENGINE_VERSION
     )
 }
@@ -217,6 +221,14 @@ pub(crate) fn encode_lower_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_user_agent_follows_modrinth_recommended_format() {
+        assert_eq!(
+            default_user_agent(),
+            "henrique-coder/oxirinth/0.1.0 (https://github.com/henrique-coder/oxirinth)"
+        );
+    }
 
     #[test]
     fn secret_string_is_redacted_in_debug_and_display() {

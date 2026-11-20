@@ -5,6 +5,7 @@ import json
 import pytest
 
 from oxirinth import (
+    DEFAULT_USER_AGENT,
     AsyncMod,
     AsyncPlugin,
     AsyncServer,
@@ -12,6 +13,7 @@ from oxirinth import (
     Mod,
     ModHit,
     Modpack,
+    OxirinthConfigError,
     OxirinthUnboundModelError,
     Plugin,
     ResourcePack,
@@ -19,6 +21,7 @@ from oxirinth import (
     ServerHit,
     Shader,
     Version,
+    build_user_agent,
 )
 from oxirinth._internal.adapters import validate_json_model, validate_search_result
 
@@ -251,3 +254,20 @@ def test_search_result_and_version_primary_file():
     )
     assert version.primary_file is not None
     assert version.primary_file.filename == "b.jar"
+
+
+def test_user_agent_defaults_and_builder():
+    assert DEFAULT_USER_AGENT == "henrique-coder/oxirinth/0.1.0 (https://github.com/henrique-coder/oxirinth)"
+    assert (
+        build_user_agent("my-launcher", "2.3.1", author="acme", contact="ops@example.com")
+        == "acme/my-launcher/2.3.1 (ops@example.com)"
+    )
+    assert build_user_agent("my-cli", "1.0.0", author="acme") == "acme/my-cli/1.0.0"
+    assert build_user_agent("my-cli", "1.0.0", contact="https://example.com") == "my-cli/1.0.0 (https://example.com)"
+    assert build_user_agent("my-cli", "1.0.0") == "my-cli/1.0.0"
+
+    with pytest.raises(OxirinthConfigError):
+        build_user_agent("  ", "1.0.0")
+
+    with pytest.raises(OxirinthConfigError):
+        build_user_agent("my-cli", "1.0\n0")
