@@ -1,4 +1,4 @@
-"""Cached Pydantic v2 TypeAdapter validation over raw UTF-8 JSON bytes from Rust."""
+"""Cached Pydantic v2 TypeAdapter validation over raw UTF-8 JSON bytes."""
 
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ from pydantic import TypeAdapter
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from oxirinth.models.domains import _BoundClientMixin
-    from oxirinth.models.search import BaseHit, SearchResult
+    from oxirinth.models._common import _BoundClientMixin
+    from oxirinth.models._search import SearchPage, _BaseSummary
 
 
 T = TypeVar("T")
-HitT = TypeVar("HitT", bound="BaseHit")
+SummaryT = TypeVar("SummaryT", bound="_BaseSummary")
 BoundT = TypeVar("BoundT", bound="_BoundClientMixin")
 
 
@@ -31,12 +31,12 @@ def validate_json_model(target_type: type[T], raw: bytes) -> T:
     return get_adapter(target_type).validate_json(raw)
 
 
-def validate_search_result(hit_cls: type[HitT], raw: bytes) -> SearchResult[HitT]:
-    """Validate a raw ``/v3/search`` JSON payload into ``SearchResult[hit_cls]``."""
-    from oxirinth.models.search import SearchResult  # noqa: PLC0415
+def validate_search_page(summary_cls: type[SummaryT], raw: bytes) -> SearchPage[SummaryT]:
+    """Validate a raw ``/v3/search`` JSON payload into ``SearchPage[summary_cls]``."""
+    from oxirinth.models._search import SearchPage  # noqa: PLC0415
 
-    generic_cls: Any = SearchResult
-    return get_adapter(generic_cls[hit_cls]).validate_json(raw)
+    generic_cls: Any = SearchPage
+    return get_adapter(generic_cls[summary_cls]).validate_json(raw)
 
 
 def validate_json_list(item_type: type[T], raw: bytes) -> list[T]:

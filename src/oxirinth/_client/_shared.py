@@ -1,10 +1,10 @@
-"""Shared client configuration translation helpers for sync and async clients."""
+"""Shared client configuration mapping for sync and async clients."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from oxirinth.config import CacheConfig
+from oxirinth._config import CacheConfig
 
 
 __all__: list[str] = ["build_core_kwargs"]
@@ -20,7 +20,7 @@ def build_core_kwargs(
     max_rate_limit_wait: float | None,
     base_url: str,
 ) -> dict[str, Any]:
-    """Translate public Python client arguments into ``SyncCore`` / ``AsyncCore`` kwargs."""
+    """Translate Python client arguments into ``SyncCore`` / ``AsyncCore`` kwargs."""
     cache_cfg = CacheConfig(enabled=cache) if isinstance(cache, bool) else cache
 
     return {

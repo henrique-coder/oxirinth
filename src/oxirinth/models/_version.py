@@ -1,23 +1,19 @@
-"""Modrinth v3 version and file metadata models."""
+"""Version and downloadable file metadata models."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
-from oxirinth.models.common import Dependency, FileHashes, OxirinthModel
+from oxirinth.models._common import Dependency, FileHashes, _OxirinthModel
 
 
 __all__: list[str] = ["Version", "VersionFile"]
 
 
-class VersionFile(OxirinthModel):
-    """Metadata and hashes for an individual file attached to a Modrinth version.
-
-    Binary downloads are intentionally out of scope for Oxirinth; inspect
-    ``url`` and ``hashes`` to integrate your preferred HTTP downloader.
-    """
+class VersionFile(_OxirinthModel):
+    """Metadata and cryptographic digests for an individual release file."""
 
     id: str | None = None
     hashes: FileHashes
@@ -27,9 +23,19 @@ class VersionFile(OxirinthModel):
     size: int
     file_type: str | None = None
 
+    @property
+    def sha512(self) -> str | None:
+        """SHA-512 hex digest of the file, if provided."""
+        return self.hashes.sha512
 
-class Version(OxirinthModel):
-    """Modrinth v3 project version release metadata."""
+    @property
+    def sha1(self) -> str | None:
+        """SHA-1 hex digest of the file, if provided."""
+        return self.hashes.sha1
+
+
+class Version(_OxirinthModel):
+    """Release version metadata for a Modrinth project."""
 
     id: str
     project_id: str
@@ -40,7 +46,7 @@ class Version(OxirinthModel):
     project_types: list[str] = Field(default_factory=list)
     games: list[str] = Field(default_factory=list)
     changelog: str | None = None
-    date_published: datetime
+    published_at: datetime = Field(validation_alias=AliasChoices("date_published", "published_at"))
     downloads: int = 0
     version_type: str
     status: str = ""
@@ -53,7 +59,7 @@ class Version(OxirinthModel):
 
     @property
     def primary_file(self) -> VersionFile | None:
-        """Return the primary version file, or the first file if none is marked primary."""
+        """Primary release file, or the first file if none is marked primary."""
         for file in self.files:
             if file.primary:
                 return file

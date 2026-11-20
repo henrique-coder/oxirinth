@@ -1,13 +1,13 @@
-"""Read-only user, organization, team member, and dependency graph models."""
+"""User, organization, team member, and dependency graph models."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
-from oxirinth.models.common import OxirinthModel
-from oxirinth.models.version import Version
+from oxirinth.models._common import _OxirinthModel
+from oxirinth.models._version import Version
 
 
 __all__: list[str] = [
@@ -19,22 +19,22 @@ __all__: list[str] = [
 ]
 
 
-class User(OxirinthModel):
-    """Public Modrinth user profile returned by ``/v3/user/{id_or_username}``."""
+class User(_OxirinthModel):
+    """Public Modrinth user profile."""
 
     id: str
     username: str
     avatar_url: str | None = None
     raw_avatar_url: str | None = None
     bio: str | None = None
-    created: datetime | None = None
+    created_at: datetime | None = Field(default=None, validation_alias=AliasChoices("created", "created_at"))
     role: str = ""
     badges: int = 0
     github_id: int | None = None
 
 
-class TeamMember(OxirinthModel):
-    """Member entry for a project team or organization."""
+class TeamMember(_OxirinthModel):
+    """Member entry belonging to a project team or organization."""
 
     team_id: str
     user: User
@@ -47,8 +47,8 @@ class TeamMember(OxirinthModel):
     ordering: int = 0
 
 
-class Organization(OxirinthModel):
-    """Modrinth organization profile returned by ``/v3/organization/{id_or_slug}``."""
+class Organization(_OxirinthModel):
+    """Modrinth organization profile and member list."""
 
     id: str
     slug: str
@@ -61,8 +61,8 @@ class Organization(OxirinthModel):
     members: list[TeamMember] = Field(default_factory=list)
 
 
-class DependencyProject(OxirinthModel):
-    """Project summary entry returned inside ``/v3/project/{id}/dependencies``."""
+class DependencyProject(_OxirinthModel):
+    """Project summary entry included in ``ProjectDependencies``."""
 
     id: str
     slug: str
@@ -75,7 +75,7 @@ class DependencyProject(OxirinthModel):
     followers: int = 0
 
 
-class ProjectDependencies(OxirinthModel):
+class ProjectDependencies(_OxirinthModel):
     """Resolved project and version dependencies for a Modrinth project."""
 
     projects: list[DependencyProject] = Field(default_factory=list)

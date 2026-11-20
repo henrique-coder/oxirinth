@@ -30,3 +30,8 @@ __all__: list[str] = [
     "OxirinthTypeMismatchError",
     "OxirinthUnboundModelError",
 ]
+
+
+def __dir__() -> list[str]:
+    """Expose only public exception classes to IDEs and introspection."""
+    return sorted(__all__)

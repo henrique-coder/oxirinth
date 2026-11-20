@@ -1,4 +1,4 @@
-"""Typed configuration models, User-Agent builder, and literal aliases for Oxirinth."""
+"""Configuration models, User-Agent helper, and typed literal aliases."""
 
 from __future__ import annotations
 
@@ -46,10 +46,7 @@ def build_user_agent(
     author: str | None = None,
     contact: str | None = None,
 ) -> str:
-    """Format a Modrinth-compliant ``User-Agent`` header string.
-
-    Modrinth recommends ``github_username/project_name/version (contact_info)`` so
-    maintainers can identify and reach out to API consumers cleanly.
+    """Format a Modrinth-recommended ``User-Agent`` header value.
 
     Args:
         project: Application or library name.
@@ -75,19 +72,19 @@ def build_user_agent(
 
 
 class CacheConfig(BaseModel):
-    """Configuration for Oxirinth's persistent `redb` + `zstd` HTTP response cache.
+    """Settings for local ``redb`` + ``zstd`` caching and RAM LRU fallback.
 
     Attributes:
-        enabled: Enable local response caching (defaults to ``True``).
+        enabled: Enable response caching (defaults to ``True``).
         cache_dir: Custom directory for ``http_cache.redb``; defaults to the OS cache directory.
         ram_fallback_max_bytes: Byte budget for the in-memory LRU fallback cache.
-        zstd_min_bytes: Minimum body size in bytes before ``zstd`` compression is applied.
+        zstd_min_bytes: Minimum payload size in bytes before ``zstd`` compression applies.
         zstd_level: Zstandard compression level (1 through 22).
-        search_ttl_secs: Fresh TTL in seconds for ``/v3/search`` responses.
-        project_ttl_secs: Fresh TTL in seconds for project, user, and organization responses.
-        version_list_ttl_secs: Fresh TTL in seconds for ``/v3/project/*/version`` responses.
-        version_ttl_secs: Fresh TTL in seconds for individual version and file-hash responses.
-        tag_ttl_secs: Fresh TTL in seconds for loader, category, game version, and license tags.
+        search_ttl_secs: TTL in seconds for ``/v3/search`` responses.
+        project_ttl_secs: TTL in seconds for project, user, and organization responses.
+        version_list_ttl_secs: TTL in seconds for ``/v3/project/*/version`` responses.
+        version_ttl_secs: TTL in seconds for individual version and file-hash responses.
+        tag_ttl_secs: TTL in seconds for loader, category, game version, and license tags.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

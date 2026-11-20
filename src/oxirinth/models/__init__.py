@@ -1,8 +1,8 @@
-"""Public Pydantic v2 models for all Modrinth API v3 domains and metadata."""
+"""Public Pydantic v2 models for Modrinth API v3 domains and metadata."""
 
 from __future__ import annotations
 
-from oxirinth.models.common import (
+from oxirinth.models._common import (
     CacheStats,
     CategoryTag,
     Dependency,
@@ -13,23 +13,15 @@ from oxirinth.models.common import (
     LicenseTag,
     LinkUrl,
     LoaderTag,
-    OxirinthModel,
     SearchDependency,
 )
-from oxirinth.models.domains import (
+from oxirinth.models._domains import (
     AsyncDataPack,
     AsyncMod,
     AsyncModpack,
     AsyncPlugin,
     AsyncResourcePack,
     AsyncShader,
-    BaseDataPack,
-    BaseDomainMeta,
-    BaseMod,
-    BaseModpack,
-    BasePlugin,
-    BaseResourcePack,
-    BaseShader,
     DataPack,
     Mod,
     Modpack,
@@ -37,22 +29,28 @@ from oxirinth.models.domains import (
     ResourcePack,
     Shader,
 )
-from oxirinth.models.search import (
-    BaseHit,
-    DataPackHit,
-    ModHit,
-    ModpackHit,
-    PluginHit,
-    ResourcePackHit,
-    SearchResult,
-    ServerHit,
-    ShaderHit,
+from oxirinth.models._search import (
+    AsyncDataPackSummary,
+    AsyncModpackSummary,
+    AsyncModSummary,
+    AsyncPluginSummary,
+    AsyncResourcePackSummary,
+    AsyncServerSummary,
+    AsyncShaderSummary,
+    DataPackSummary,
+    ModpackSummary,
+    ModSummary,
+    PluginSummary,
+    ResourcePackSummary,
+    SearchPage,
+    ServerSummary,
+    ShaderSummary,
 )
-from oxirinth.models.server import (
+from oxirinth.models._server import (
     AsyncServer,
-    BaseServer,
     BedrockServerInfo,
     JavaServerInfo,
+    PlayerCount,
     Server,
     ServerContent,
     ServerLatency,
@@ -60,38 +58,36 @@ from oxirinth.models.server import (
     ServerPing,
     ServerPingData,
 )
-from oxirinth.models.social import (
+from oxirinth.models._social import (
     DependencyProject,
     Organization,
     ProjectDependencies,
     TeamMember,
     User,
 )
-from oxirinth.models.version import Version, VersionFile
+from oxirinth.models._version import Version, VersionFile
 
 
 __all__: list[str] = [
     "AsyncDataPack",
+    "AsyncDataPackSummary",
     "AsyncMod",
+    "AsyncModSummary",
     "AsyncModpack",
+    "AsyncModpackSummary",
     "AsyncPlugin",
+    "AsyncPluginSummary",
     "AsyncResourcePack",
+    "AsyncResourcePackSummary",
     "AsyncServer",
+    "AsyncServerSummary",
     "AsyncShader",
-    "BaseDataPack",
-    "BaseDomainMeta",
-    "BaseHit",
-    "BaseMod",
-    "BaseModpack",
-    "BasePlugin",
-    "BaseResourcePack",
-    "BaseServer",
-    "BaseShader",
+    "AsyncShaderSummary",
     "BedrockServerInfo",
     "CacheStats",
     "CategoryTag",
     "DataPack",
-    "DataPackHit",
+    "DataPackSummary",
     "Dependency",
     "DependencyProject",
     "FileHashes",
@@ -103,29 +99,34 @@ __all__: list[str] = [
     "LinkUrl",
     "LoaderTag",
     "Mod",
-    "ModHit",
+    "ModSummary",
     "Modpack",
-    "ModpackHit",
+    "ModpackSummary",
     "Organization",
-    "OxirinthModel",
+    "PlayerCount",
     "Plugin",
-    "PluginHit",
+    "PluginSummary",
     "ProjectDependencies",
     "ResourcePack",
-    "ResourcePackHit",
+    "ResourcePackSummary",
     "SearchDependency",
-    "SearchResult",
+    "SearchPage",
     "Server",
     "ServerContent",
-    "ServerHit",
     "ServerLatency",
     "ServerMeta",
     "ServerPing",
     "ServerPingData",
+    "ServerSummary",
     "Shader",
-    "ShaderHit",
+    "ShaderSummary",
     "TeamMember",
     "User",
     "Version",
     "VersionFile",
 ]
+
+
+def __dir__() -> list[str]:
+    """Expose only public model classes to IDEs and introspection."""
+    return sorted(__all__)
