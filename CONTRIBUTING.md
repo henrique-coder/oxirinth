@@ -34,7 +34,8 @@ Useful commands:
 | :---------------- | :----------------------------------------------------------------------------------- |
 | `just format`     | Format Rust, Python, Markdown, YAML, and TOML files.                                 |
 | `just lint`       | Run Cargo fmt/clippy, Ruff, ty, mypy stubtest, Prettier, Taplo, and workflow checks. |
-| `just test`       | Run Rust unit/integration tests and Python `pytest` tests.                           |
+| `just test`       | Run fast offline Rust unit/integration tests and Python `pytest` tests (`not live`). |
+| `just test-live`  | Run opt-in live Modrinth API v3 endpoint verification tests (`pytest -m live`).      |
 | `just docs-build` | Build Zensical documentation with `--clean --strict`.                                |
 | `just build`      | Build source distribution and wheel via Maturin.                                     |
 
@@ -50,7 +51,7 @@ The `just lint` check runs at `git push`, not at `git add` or `git commit`. CI r
 
 - Keep changes focused on one concern.
 - Respect the strict FFI boundary: HTTP transport, retries, rate limiting, and `redb`+`zstd` caching stay inside `rust/oxirinth-engine`; Python stays focused on Pydantic v2 models and explicit `Oxirinth` / `AsyncOxirinth` client ergonomics.
-- Never hardcode Modrinth URLs outside `rust/oxirinth-engine/src/routes.rs`, and keep `docs/api/v3-endpoints.md` synchronized whenever checking `/v2` fallback routes.
+- Never hardcode Modrinth URLs outside `rust/oxirinth-engine/src/routes.rs`, keep routes strictly on `/v3`, and keep `docs/api/v3-endpoints.md` synchronized on every endpoint verification.
 - Maintain 100% signature and method parity between `Oxirinth` and `AsyncOxirinth`.
 - Add or update offline unit/integration tests for any behavior change.
 - Run `just lint`, `just test`, and `just docs-build` before requesting review.

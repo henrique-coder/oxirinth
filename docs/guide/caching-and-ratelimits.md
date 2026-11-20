@@ -1,6 +1,6 @@
 # Caching & Rate Limits
 
-Oxirinth embeds an asynchronous caching and quota-pacing pipeline inside Rust so Python applications achieve maximum throughput without triggering Modrinth `429` bans.
+Oxirinth runs HTTP caching and quota pacing inside Rust so concurrent Python applications stay within Modrinth rate limits.
 
 ## Multi-Layer Caching (`redb` + `zstd` + RAM LRU)
 
@@ -12,7 +12,7 @@ Caching is **enabled by default** using `<os_cache_dir>/oxirinth/http_cache.redb
    - `/v3/project/*`, `/v3/user/*`, `/v3/organization/*`: **15 minutes** (`900s`)
    - `/v3/project/*/version`: **5 minutes** (`300s`)
    - `/v3/search`: **2 minutes** (`120s`)
-   - `/v3/tag/*` & `/v2/tag/*`: **6 hours** (`21_600s`)
+   - `/v3/tag/*`, `/v3/license`, and `/v3/loader_field`: **6 hours** (`21_600s`)
 3. **Conditional Revalidation (`304 Not Modified`):** Expired entries storing `ETag` or `Last-Modified` send `If-None-Match` / `If-Modified-Since`. A `304` refreshes freshness metadata in place without transferring or recompressing the JSON body.
 4. **Auth Session Isolation:** Every cache key hashes `(method, canonical_url, auth_fingerprint)` using SHA-256 (`"anon"` or `SHA-256(api_key)`), so authenticated and anonymous responses never mix.
 5. **Bounded RAM LRU Fallback:** If `redb` cannot open or acquire the exclusive file lock (for example, `DatabaseAlreadyOpen` or a read-only filesystem), Oxirinth logs a warning and degrades cleanly to a thread-safe in-memory LRU cache (`64 MiB` by default).
