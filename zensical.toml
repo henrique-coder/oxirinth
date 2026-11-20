@@ -7,7 +7,15 @@ site_url = "https://oxirinth.readthedocs.io"
 
 nav = [
     { "Home" = "index.md" },
-    { "Modrinth API v3 Reference" = "api/v3-endpoints.md" },
+    { "Getting Started" = "getting-started.md" },
+    { "Guide" = [
+        { "Domains & Models" = "guide/domains.md" },
+        { "Caching & Rate Limits" = "guide/caching-and-ratelimits.md" },
+        { "Exceptions" = "guide/exceptions.md" },
+    ] },
+    { "API Reference" = [
+        { "Modrinth API v3" = "api/v3-endpoints.md" },
+    ] },
 ]
 
 [project.theme]
