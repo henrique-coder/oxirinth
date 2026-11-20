@@ -442,9 +442,18 @@ mod tests {
 
     #[test]
     fn encodes_path_segments_safely_against_traversal() {
-        assert!(matches!(project(&base(), "../admin"), Err(EngineError::Config(_))));
-        assert!(matches!(project(&base(), ".."), Err(EngineError::Config(_))));
-        assert!(matches!(project(&base(), "foo/bar"), Err(EngineError::Config(_))));
+        assert!(matches!(
+            project(&base(), "../admin"),
+            Err(EngineError::Config(_))
+        ));
+        assert!(matches!(
+            project(&base(), ".."),
+            Err(EngineError::Config(_))
+        ));
+        assert!(matches!(
+            project(&base(), "foo/bar"),
+            Err(EngineError::Config(_))
+        ));
 
         let encoded = project(&base(), "foo?x=1#frag").unwrap();
         assert_eq!(encoded.url.path(), "/v3/project/foo%3Fx=1%23frag");
