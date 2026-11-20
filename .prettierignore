@@ -1,14 +1,19 @@
-# Directories: generated output
+# Generated output and build artifacts
 .cache/
-.superpowers/
-reports/
+.venv/
+build/
+dist/
+node_modules/
 site/
 target/
+wheels/
 
-# Dependency lockfiles
+# Lockfiles and fixtures
 Cargo.lock
 pnpm-lock.yaml
+tests/fixtures/
 uv.lock
 
-# Editor settings
+# Local private scripts and editor config
 .editorconfig
+example*.py

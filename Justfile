@@ -6,6 +6,9 @@ update:
     cargo update
     pnpm update
 
+dev:
+    uv run maturin develop
+
 format:
     cargo fmt --all
     uv run --only-group lint ruff check --fix
