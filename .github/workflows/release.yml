@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Publish built wheels to PyPI (leave false for dry-run matrix verification)."
+        description: "Publish built wheels to PyPI and create the GitHub Release (leave false for dry-run)."
         required: true
         default: false
         type: boolean
@@ -16,12 +16,151 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate Release Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      package_name: ${{ steps.meta.outputs.package_name }}
+      should_publish: ${{ steps.meta.outputs.should_publish }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Validate Versions, Changelog & Remote State
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          from datetime import date
+          from json import load as json_load
+          from os import environ
+          from pathlib import Path
+          from re import IGNORECASE, MULTILINE, fullmatch, search
+          import subprocess
+          from tomllib import load as toml_load
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+
+          with Path("pyproject.toml").open("rb") as f:
+              pyproject = toml_load(f)
+          package_name = pyproject["project"]["name"]
+          version = pyproject["project"]["version"]
+          tag = f"v{version}"
+
+          with Path("Cargo.toml").open("rb") as f:
+              cargo_version = toml_load(f)["workspace"]["package"]["version"]
+          if cargo_version != version:
+              raise SystemExit(f"Cargo.toml workspace version {cargo_version!r} != pyproject.toml {version!r}")
+
+          with Path("uv.lock").open("rb") as f:
+              lock_data = toml_load(f)
+          lock_version = next(
+              (pkg.get("version") for pkg in lock_data.get("package", []) if pkg.get("name") == package_name),
+              None,
+          )
+          if lock_version != version:
+              raise SystemExit(f"uv.lock version {lock_version!r} != pyproject.toml {version!r}")
+
+          event_name = environ["EVENT_NAME"]
+          github_ref = environ["GITHUB_REF"]
+          input_publish = environ.get("INPUT_PUBLISH", "false") == "true"
+
+          if event_name == "push" and github_ref.startswith("refs/tags/v"):
+              pushed_tag = github_ref.removeprefix("refs/tags/")
+              if pushed_tag != tag:
+                  raise SystemExit(f"Pushed tag {pushed_tag!r} does not match pyproject.toml version {tag!r}")
+              should_publish = True
+          elif event_name == "workflow_dispatch" and input_publish:
+              if github_ref != "refs/heads/prod":
+                  raise SystemExit("Publishing via workflow_dispatch must run from the prod branch.")
+              should_publish = True
+          else:
+              should_publish = False
+
+          if should_publish:
+              changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+              heading_match = search(r"^## \[([^\]]+)\](.*)$", changelog, MULTILINE)
+              if heading_match is None:
+                  raise SystemExit("CHANGELOG.md does not contain a release heading.")
+              heading_line = heading_match.group(0).strip()
+              if search(r"\bunreleased\b", heading_line, IGNORECASE):
+                  raise SystemExit(
+                      f"CHANGELOG.md top heading is still Unreleased ({heading_line}); "
+                      "set the release date (YYYY-MM-DD) before publishing."
+                  )
+              dated = fullmatch(r"^## \[(?P<ver>\d+\.\d+\.\d+)\] - (?P<dt>\d{4}-\d{2}-\d{2})$", heading_line)
+              if dated is None:
+                  raise SystemExit(f"Top CHANGELOG.md heading must match '## [X.Y.Z] - YYYY-MM-DD', got {heading_line!r}")
+              date.fromisoformat(dated.group("dt"))
+              if dated.group("ver") != version:
+                  raise SystemExit(f"CHANGELOG.md top version {dated.group('ver')!r} != pyproject.toml {version!r}")
+
+              repo = environ["GITHUB_REPOSITORY"]
+              release_check = subprocess.run(
+                  ["gh", "release", "view", tag, "--repo", repo],
+                  capture_output=True,
+                  text=True,
+              )
+              if release_check.returncode == 0:
+                  raise SystemExit(f"GitHub Release {tag} already exists; releases are immutable.")
+
+              ls_tag = subprocess.run(
+                  ["git", "ls-remote", "--exit-code", "--tags", "origin", f"refs/tags/{tag}"],
+                  capture_output=True,
+                  text=True,
+              )
+              if ls_tag.returncode == 0:
+                  subprocess.run(["git", "fetch", "origin", f"refs/tags/{tag}:refs/tags/{tag}"], check=True)
+                  tag_sha = subprocess.check_output(["git", "rev-list", "-n", "1", tag], text=True).strip()
+                  if tag_sha != environ["GITHUB_SHA"]:
+                      raise SystemExit(f"Existing tag {tag} points to {tag_sha}, not {environ['GITHUB_SHA']}.")
+
+              pypi_url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+              req = Request(pypi_url, headers={"Cache-Control": "no-cache"})
+              try:
+                  with urlopen(req, timeout=20) as resp:
+                      urls = json_load(resp).get("urls", [])
+                  print(
+                      f"Notice: PyPI already contains {len(urls)} files for {package_name} {version}; "
+                      f"missing uploads will resume and GitHub Release {tag} will be created."
+                  )
+              except HTTPError as exc:
+                  if exc.code != 404:
+                      raise
+                  print(f"Ready for fresh release of {package_name} {version} ({tag}).")
+
+          with Path(environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as out:
+              out.write(f"version={version}\n")
+              out.write(f"tag={tag}\n")
+              out.write(f"package_name={package_name}\n")
+              out.write(f"should_publish={str(should_publish).lower()}\n")
+          PY
+
   linux_manylinux:
     name: Linux manylinux (${{ matrix.target }})
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -66,6 +205,7 @@ jobs:
 
   linux_musllinux:
     name: Linux musllinux (${{ matrix.target }})
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -103,6 +243,7 @@ jobs:
 
   macos:
     name: macOS (${{ matrix.platform.target }} / Py ${{ matrix.python-version }})
+    needs: validate
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 45
     strategy:
@@ -147,6 +288,7 @@ jobs:
 
   windows:
     name: Windows (${{ matrix.platform.target }} / Py ${{ matrix.python-version }})
+    needs: validate
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 45
     strategy:
@@ -208,6 +350,7 @@ jobs:
 
   sdist:
     name: Build Source Distribution
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -232,6 +375,7 @@ jobs:
   verify_wheels:
     name: Smoke Test Wheels (${{ matrix.os }})
     needs:
+      - validate
       - linux_manylinux
       - linux_musllinux
       - macos
@@ -263,18 +407,21 @@ jobs:
 
       - name: Install Built Wheel Offline & Verify Import
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
         run: |
           uv venv .smoke-venv --python 3.14
           uv pip install --python .smoke-venv "pydantic>=2.4.0,<3.0.0"
           uv pip install --python .smoke-venv --no-index --no-deps --find-links dist oxirinth
           uv run --python .smoke-venv --no-project python -c \
-            "import oxirinth; print(oxirinth.__version__, oxirinth.DEFAULT_USER_AGENT); assert oxirinth.__version__ == '0.1.0'"
+            "import os, oxirinth; print(oxirinth.__version__, oxirinth.DEFAULT_USER_AGENT); assert oxirinth.__version__ == os.environ['EXPECTED_VERSION']"
 
   publish_pypi:
     name: Publish to PyPI
     needs:
+      - validate
       - verify_wheels
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
+    if: needs.validate.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -290,16 +437,62 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish Packages to PyPI
+      - name: Check Existing PyPI Distributions
+        id: pypi_state
+        env:
+          PACKAGE_NAME: ${{ needs.validate.outputs.package_name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          from json import load as json_load
+          from os import environ
+          from pathlib import Path
+          import shutil
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+
+          pkg = environ["PACKAGE_NAME"]
+          ver = environ["VERSION"]
+          artifacts = sorted((*Path("dist").glob("*.whl"), *Path("dist").glob("*.tar.gz")))
+          if not artifacts:
+              raise SystemExit("No distribution files found in dist/.")
+
+          req = Request(f"https://pypi.org/pypi/{pkg}/{ver}/json", headers={"Cache-Control": "no-cache"})
+          try:
+              with urlopen(req, timeout=20) as resp:
+                  published_names = {item["filename"] for item in json_load(resp).get("urls", [])}
+          except HTTPError as exc:
+              if exc.code != 404:
+                  raise
+              published_names = set()
+
+          missing = [path for path in artifacts if path.name not in published_names]
+          upload_dir = Path("upload")
+          upload_dir.mkdir(parents=True, exist_ok=True)
+          for path in missing:
+              shutil.copy2(path, upload_dir / path.name)
+
+          if missing:
+              print(f"Prepared {len(missing)} missing files for upload to PyPI (already on PyPI: {len(published_names)}).")
+          else:
+              print(f"All {len(artifacts)} distributions already exist on PyPI for {pkg} {ver}; skipping PyPI upload.")
+
+          with Path(environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as out:
+              out.write(f"has_missing={str(bool(missing)).lower()}\n")
+          PY
+
+      - name: Publish Missing Packages to PyPI
+        if: steps.pypi_state.outputs.has_missing == 'true'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
-          packages-dir: dist/
+          packages-dir: upload/
 
   github_release:
     name: Create GitHub Release
     needs:
+      - validate
       - publish_pypi
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: needs.validate.outputs.should_publish == 'true' && needs.publish_pypi.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -309,6 +502,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Download All Built Distributions
@@ -317,12 +512,49 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Generate SHA-256 Checksums
-        working-directory: dist
-        run: sha256sum * > SHA256SUMS.txt
+      - name: Generate Release Notes & SHA-256 Checksums
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          from os import environ
+          from pathlib import Path
+          from re import finditer
 
-      - name: Create GitHub Release
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          sections = list(finditer(r"(?m)^## \[(\d+\.\d+\.\d+)\][^\n]*\n", changelog))
+          version = environ["VERSION"]
+          selected = next((i for i, m in enumerate(sections) if m.group(1) == version), None)
+          if selected is not None:
+              start = sections[selected].end()
+              end = sections[selected + 1].start() if selected + 1 < len(sections) else len(changelog)
+              notes = changelog[start:end].strip()
+              if notes:
+                  Path("release_notes.md").write_text(notes + "\n", encoding="utf-8")
+          PY
+          sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS.txt
+
+      - name: Create Tag & GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
-        run: gh release create "$TAG_NAME" dist/* --generate-notes --verify-tag
+          TAG_NAME: ${{ needs.validate.outputs.tag }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$TAG_NAME" \
+              -f sha="$GITHUB_SHA"
+          fi
+          if [ -s release_notes.md ]; then
+            gh release create "$TAG_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG_NAME" \
+              --notes-file release_notes.md \
+              --verify-tag
+          else
+            gh release create "$TAG_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG_NAME" \
+              --generate-notes \
+              --verify-tag
+          fi
