@@ -1002,10 +1002,12 @@ dependencies = [
 name = "oxirinth-py"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "oxirinth-engine",
  "pyo3",
  "pyo3-async-runtimes",
  "tokio",
+ "url",
 ]
 
 [[package]]
