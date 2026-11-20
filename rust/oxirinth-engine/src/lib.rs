@@ -2,9 +2,11 @@
 
 use std::sync::Once;
 
+pub mod cache;
 pub mod config;
 pub mod domain;
 pub mod error;
+pub mod http;
 pub mod routes;
 
 /// Semantic version of the internal `oxirinth-engine` crate.
