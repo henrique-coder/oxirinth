@@ -21,7 +21,7 @@ Install with `uv`:
 uv add oxirinth
 ```
 
-Pre-built wheels target **Python 3.11–3.15** (including free-threaded `3.13t`–`3.15t`) across Linux (`manylinux` and `musllinux` on `x86_64`, `aarch64`, `armv7`, `x86`), macOS (`arm64`, `x86_64`), and Windows (`x64`, `x86`, `arm64`).
+Pre-built wheels target **Python 3.11–3.15** (including free-threaded `3.14t`–`3.15t`) across Linux (`manylinux` and `musllinux` on `x86_64`, `aarch64`, `armv7`, `x86`), macOS (`arm64`, `x86_64`), and Windows (`x64`, `x86`, `arm64`).
 
 ## Quickstart
 

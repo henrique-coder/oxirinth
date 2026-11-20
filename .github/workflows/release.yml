@@ -42,7 +42,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: |
+            3.11
+            3.12
+            3.13
+            3.14
+            3.14t
+            3.15
+            3.15t
 
       - name: Build manylinux Wheels
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
@@ -110,7 +117,6 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
-          - "3.13t"
           - "3.14"
           - "3.14t"
           - "3.15"
@@ -160,17 +166,11 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
-          - "3.13t"
           - "3.14"
           - "3.14t"
           - "3.15"
           - "3.15t"
         exclude:
-          - platform:
-              runner: windows-latest
-              target: x86
-              python_arch: x86
-            python-version: "3.13t"
           - platform:
               runner: windows-latest
               target: x86
