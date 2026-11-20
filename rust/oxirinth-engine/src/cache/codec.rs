@@ -22,6 +22,12 @@ impl CacheEntry {
     pub fn is_fresh(&self, now_unix: u64) -> bool {
         now_unix.saturating_sub(self.stored_at_unix) < u64::from(self.ttl_secs)
     }
+
+    /// Return whether this cached entry is fresh against both its stored TTL and `max_ttl_secs`.
+    pub fn is_fresh_within(&self, now_unix: u64, max_ttl_secs: u32) -> bool {
+        let effective_ttl = self.ttl_secs.min(max_ttl_secs);
+        now_unix.saturating_sub(self.stored_at_unix) < u64::from(effective_ttl)
+    }
 }
 
 /// Encode a [`CacheEntry`] into a compact binary envelope, compressing large bodies with `zstd`.
