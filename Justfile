@@ -22,7 +22,7 @@ lint:
     uv run --only-group lint ruff check
     uv run --only-group lint ruff format --check
     uv run --no-dev --group lint --group tests ty check
-    uv run --no-dev --group tests python -m mypy.stubtest oxirinth._core
+    uv run --no-dev --group lint python -m mypy.stubtest oxirinth._core
     pnpm prettier --check .
     pnpm taplo lint Cargo.toml pyproject.toml zensical.toml rust/oxirinth-engine/Cargo.toml rust/oxirinth-py/Cargo.toml
     if [ -d .github/workflows ]; then uv run --only-group workflow zizmor .github/workflows; fi
@@ -30,6 +30,9 @@ lint:
 test:
     cargo test -p oxirinth-engine
     uv run --no-dev --group tests pytest
+
+test-live:
+    uv run --no-dev --group tests pytest -m live -v
 
 docs:
     uv run --only-group docs zensical serve -a localhost:4000

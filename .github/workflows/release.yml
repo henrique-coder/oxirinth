@@ -265,7 +265,7 @@ jobs:
         shell: bash
         run: |
           uv venv .smoke-venv --python 3.14
-          uv pip install --python .smoke-venv "pydantic>=2.12.0,<3.0.0"
+          uv pip install --python .smoke-venv "pydantic>=2.4.0,<3.0.0"
           uv pip install --python .smoke-venv --no-index --no-deps --find-links dist oxirinth
           uv run --python .smoke-venv --no-project python -c \
             "import oxirinth; print(oxirinth.__version__, oxirinth.DEFAULT_USER_AGENT); assert oxirinth.__version__ == '0.1.0'"

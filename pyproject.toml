@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "maturin>=1.16,<2.0",
+    "maturin>=1.14.1,<2.0",
 ]
 build-backend = "maturin"
 
@@ -40,7 +40,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "pydantic>=2.12.0, <3.0.0",
+    "pydantic>=2.4.0, <3.0.0",
 ]
 
 [project.urls]
@@ -55,30 +55,35 @@ Security = "https://github.com/henrique-coder/oxirinth/security/policy"
 
 [dependency-groups]
 dev = [
-    { include-group = "docs" },
+    { include-group = "examples" },
     { include-group = "hooks" },
+    { include-group = "docs" },
     { include-group = "lint" },
     { include-group = "tests" },
     { include-group = "workflow" },
-    "maturin>=1.16,<2.0",
+    "maturin>=1.14.1,<2.0",
 ]
-docs = [
-    "zensical>=0.1.0",
+examples = [
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
 ]
 hooks = [
     "prek>=0.4.0",
 ]
+docs = [
+    "zensical>=0.1.0",
+]
 lint = [
-    "ruff>=0.16.0",
+    "mypy>=1.14.0",
+    "ruff>=0.11.0",
     "ty>=0.0.60",
 ]
 tests = [
-    "mypy>=1.15.0",
-    "pytest-asyncio>=0.25.0",
-    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest>=8.0.0",
 ]
 workflow = [
-    "zizmor>=1.28.0",
+    "zizmor>=1.10.0",
 ]
 
 [tool.maturin]
@@ -96,6 +101,7 @@ cache-keys = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not live'"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
@@ -156,7 +162,7 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "ANN201", "ANN202", "PLR0915", "TC003"]
 "src/oxirinth/_core.pyi" = ["D", "PYI021"]
-"src/oxirinth/config.py" = ["TC001", "TC002", "TC003"]
+"src/oxirinth/_config.py" = ["TC001", "TC002", "TC003"]
 "src/oxirinth/models/**/*.py" = ["TC001", "TC002", "TC003"]
 
 [tool.ruff.format]
