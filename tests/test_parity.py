@@ -1,26 +1,45 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
+from pydantic import BaseModel
 import pytest
 
+import oxirinth
 from oxirinth import (
     AsyncDataPack,
+    AsyncDataPackSummary,
     AsyncMod,
     AsyncModpack,
+    AsyncModpackSummary,
+    AsyncModSummary,
     AsyncOxirinth,
     AsyncPlugin,
+    AsyncPluginSummary,
     AsyncResourcePack,
+    AsyncResourcePackSummary,
     AsyncServer,
+    AsyncServerSummary,
     AsyncShader,
+    AsyncShaderSummary,
     DataPack,
+    DataPackSummary,
     Mod,
     Modpack,
+    ModpackSummary,
+    ModSummary,
     Oxirinth,
     Plugin,
+    PluginSummary,
     ResourcePack,
+    ResourcePackSummary,
     Server,
+    ServerSummary,
     Shader,
+    ShaderSummary,
+    exceptions,
+    models,
 )
 
 
@@ -45,7 +64,6 @@ def test_sync_and_async_client_signature_parity():
     sync_methods = _public_methods(Oxirinth)
     async_methods = _public_methods(AsyncOxirinth)
 
-    # Map lifecycle close <-> aclose for strict parity comparison.
     assert "close" in sync_methods
     assert "aclose" in async_methods
     sync_comparable = {k: v for k, v in sync_methods.items() if k != "close"}
@@ -58,7 +76,6 @@ def test_sync_and_async_client_signature_parity():
             f"Signature mismatch on client method '{method_name}'"
         )
 
-    # Confirm async methods are coroutines (except synchronous cache introspection).
     sync_only_helpers = {"cache_stats", "clear_cache"}
     for name in sync_comparable:
         async_fn = getattr(AsyncOxirinth, name)
@@ -98,16 +115,61 @@ def test_no_generic_project_or_download_methods_exist():
     ],
 )
 def test_sync_and_async_domain_model_parity(sync_cls: type[object], async_cls: type[object]):
-    sync_methods = _public_methods(sync_cls)
-    async_methods = _public_methods(async_cls)
-
-    # Filter out inherited Pydantic BaseModel methods so we compare Oxirinth helper methods cleanly.
-    base_pydantic = set(dir(sync_cls.mro()[-3]))
-    sync_own = {k: v for k, v in sync_methods.items() if k not in base_pydantic}
-    async_own = {k: v for k, v in async_methods.items() if k not in base_pydantic}
+    base_pydantic = set(dir(BaseModel))
+    sync_own = {k: v for k, v in _public_methods(sync_cls).items() if k not in base_pydantic}
+    async_own = {k: v for k, v in _public_methods(async_cls).items() if k not in base_pydantic}
 
     assert set(sync_own) == set(async_own)
     for name, sync_sig in sync_own.items():
         assert _normalize_params(sync_sig) == _normalize_params(async_own[name])
         assert not inspect.iscoroutinefunction(getattr(sync_cls, name))
         assert inspect.iscoroutinefunction(getattr(async_cls, name))
+
+
+@pytest.mark.parametrize(
+    ("sync_cls", "async_cls"),
+    [
+        (ModSummary, AsyncModSummary),
+        (PluginSummary, AsyncPluginSummary),
+        (ResourcePackSummary, AsyncResourcePackSummary),
+        (DataPackSummary, AsyncDataPackSummary),
+        (ShaderSummary, AsyncShaderSummary),
+        (ModpackSummary, AsyncModpackSummary),
+        (ServerSummary, AsyncServerSummary),
+    ],
+)
+def test_sync_and_async_summary_model_parity(sync_cls: type[object], async_cls: type[object]):
+    base_pydantic = set(dir(BaseModel))
+    sync_own = {k: v for k, v in _public_methods(sync_cls).items() if k not in base_pydantic}
+    async_own = {k: v for k, v in _public_methods(async_cls).items() if k not in base_pydantic}
+
+    assert "fetch" in sync_own
+    assert set(sync_own) == set(async_own)
+    for name, sync_sig in sync_own.items():
+        assert _normalize_params(sync_sig) == _normalize_params(async_own[name])
+        assert not inspect.iscoroutinefunction(getattr(sync_cls, name))
+        assert inspect.iscoroutinefunction(getattr(async_cls, name))
+
+
+def test_strict_public_visibility_and_module_encapsulation():
+    assert set(dir(oxirinth)) == set(oxirinth.__all__)
+    assert set(dir(models)) == set(models.__all__)
+    assert set(dir(exceptions)) == set(exceptions.__all__)
+
+    forbidden_internals = {"OxirinthModel", "SyncCore", "AsyncCore", "_core", "BaseMod", "BaseHit"}
+    for namespace_all in (oxirinth.__all__, models.__all__, exceptions.__all__):
+        assert forbidden_internals.isdisjoint(namespace_all)
+        assert not any(name.startswith("Base") for name in namespace_all)
+        assert not any(name.startswith("_") and name != "__version__" for name in namespace_all)
+
+    pkg_dir = Path(oxirinth.__file__).parent
+    allowed_top_level = {"__init__.py", "exceptions.py", "models", "py.typed"}
+    for entry in pkg_dir.iterdir():
+        if entry.name.startswith("_"):
+            continue
+        assert entry.name in allowed_top_level, f"Unprefixed internal module exposed: {entry.name}"
+
+    for entry in (pkg_dir / "models").iterdir():
+        if entry.name.startswith("_"):
+            continue
+        assert entry.name == "__init__.py", f"Unprefixed internal model module exposed: models/{entry.name}"

@@ -20,8 +20,10 @@ from oxirinth import (
     Oxirinth,
     OxirinthNotFoundError,
     OxirinthTypeMismatchError,
+    PlayerCount,
     Plugin,
     ResourcePack,
+    SearchPage,
     Server,
     Shader,
     build_user_agent,
@@ -131,8 +133,8 @@ STATIC_ROUTES: dict[str, Any] = {
     "/v3/organization/caffeinemc": {"id": "ORG1", "slug": "caffeinemc", "name": "CaffeineMC", "team_id": "T1"},
     "/v3/tag/loader": [{"name": "paper", "supported_project_types": ["plugin"]}],
     "/v3/tag/category": [{"name": "optimization", "project_type": "mod", "header": "categories"}],
-    "/v2/tag/game_version": [{"version": "1.21.1", "version_type": "release", "date": "2024-08-08T00:00:00Z"}],
-    "/v2/tag/license": [{"short": "MIT", "name": "MIT License"}],
+    "/v3/loader_field": [{"value": "1.21.1", "type": "release", "created": "2024-08-08T00:00:00Z", "major": True}],
+    "/v3/license": [{"short": "MIT", "name": "MIT License"}],
 }
 
 
@@ -156,6 +158,7 @@ def _resolve_mock_route(path: str, qs: dict[str, list[str]]) -> tuple[int, Any]:
                 "mrpack_loaders": p["mrpack_loaders"],
                 "game_versions": p["game_versions"],
                 "downloads": p["downloads"],
+                "follows": p["followers"],
                 "minecraft_server": p.get("minecraft_server"),
                 "minecraft_java_server": p.get("minecraft_java_server"),
             }
@@ -246,7 +249,9 @@ def test_sync_client_all_domains_and_helpers(mock_api_url: str, tmp_path: Path):
         server = client.get_server("aero-server")
         assert isinstance(server, Server)
         assert server.address == "play.aerosmp.com"
-        assert server.players_online == 27
+        assert server.online_players == 27
+        assert server.max_players == 300
+        assert server.players == PlayerCount(online=27, max=300)
         assert server.get_members()[0].user.username == "lucko"
 
         assert [m.slug for m in client.get_mods(["sodium", "terralith"])] == ["sodium", "terralith"]
@@ -257,19 +262,33 @@ def test_sync_client_all_domains_and_helpers(mock_api_url: str, tmp_path: Path):
         assert client.get_modpacks(["fabulously-optimized"])[0].slug == "fabulously-optimized"
         assert client.get_servers(["aero-server"])[0].slug == "aero-server"
 
-        assert client.search_mods().hits[0].slug == "sodium"
-        assert client.search_plugins().hits[0].slug == "luckperms"
-        assert client.search_resourcepacks().hits[0].slug == "fresh-animations"
-        assert client.search_datapacks().hits[0].slug == "terralith"
-        assert client.search_shaders().hits[0].slug == "complementary"
-        assert client.search_modpacks().hits[0].mod_loaders == ["fabric"]
-        assert client.search_servers().hits[0].address == "play.aerosmp.com"
+        mods_page = client.search_mods()
+        assert isinstance(mods_page, SearchPage)
+        assert len(mods_page) == 3
+        assert mods_page.total == 3
+        assert mods_page.first is not None
+        assert mods_page[0].slug == "sodium"
+        assert mods_page[0].fetch().slug == "sodium"
+
+        assert client.search_plugins()[0].slug == "luckperms"
+        assert client.search_resourcepacks()[0].slug == "fresh-animations"
+        assert client.search_datapacks()[0].slug == "terralith"
+        assert client.search_shaders()[0].slug == "complementary"
+        assert client.search_modpacks()[0].mod_loaders == ["fabric"]
+
+        servers_page = client.search_servers()
+        assert servers_page[0].address == "play.aerosmp.com"
+        assert servers_page[0].online_players == 27
+        assert servers_page[0].max_players == 300
+        assert servers_page[0].region == "europe"
+        assert servers_page[0].is_online is True
 
         plugin = client.get_plugin("luckperms")
         latest = plugin.get_latest_version(loaders=["paper"])
         assert latest is not None
         assert latest.primary_file is not None
         assert latest.primary_file.filename == "LuckPerms-Bukkit-5.4.145.jar"
+        assert latest.primary_file.sha1 == "deadbeef"
         assert plugin.get_dependencies().versions[0].id == "VER1"
 
         assert client.get_version("VER1").id == "VER1"
@@ -310,8 +329,15 @@ async def test_async_client_all_domains_and_helpers(mock_api_url: str, tmp_path:
         assert server.address == "play.aerosmp.com"
         assert (await server.get_members())[0].role == "Owner"
 
-        assert (await client.search_mods()).hits[0].slug == "sodium"
-        assert (await client.search_servers()).hits[0].players_online == 27
+        mods_page = await client.search_mods()
+        assert mods_page[0].slug == "sodium"
+        hydrated_mod = await mods_page[0].fetch()
+        assert isinstance(hydrated_mod, Mod) is False
+        assert hydrated_mod.slug == "sodium"
+
+        srv_page = await client.search_servers()
+        assert srv_page[0].online_players == 27
+        assert srv_page[0].max_players == 300
         assert [m.slug for m in await client.get_mods(["sodium", "luckperms"])] == ["sodium", "luckperms"]
         assert (await client.get_version("VER1")).id == "VER1"
         assert (await client.get_versions(["VER1"]))[0].id == "VER1"

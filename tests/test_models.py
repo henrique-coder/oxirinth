@@ -7,23 +7,27 @@ import pytest
 from oxirinth import (
     DEFAULT_USER_AGENT,
     AsyncMod,
+    AsyncModSummary,
     AsyncPlugin,
     AsyncServer,
     DataPack,
+    GameVersionTag,
     Mod,
-    ModHit,
     Modpack,
+    ModSummary,
     OxirinthConfigError,
     OxirinthUnboundModelError,
+    PlayerCount,
     Plugin,
     ResourcePack,
+    SearchPage,
     Server,
-    ServerHit,
+    ServerSummary,
     Shader,
     Version,
     build_user_agent,
 )
-from oxirinth._internal.adapters import validate_json_model, validate_search_result
+from oxirinth._internal.adapters import validate_json_model, validate_search_page
 
 
 def _project_payload(
@@ -61,7 +65,7 @@ def _project_payload(
         "mrpack_loaders": mrpack_loaders or [],
         "minecraft_server": {
             "max_players": 300,
-            "country": None,
+            "country": "DE",
             "region": "europe",
             "languages": ["en"],
             "active_version": None,
@@ -120,6 +124,7 @@ def test_domain_field_isolation_and_bytes_validation():
     )
 
     assert mod.loaders == ["fabric"]
+    assert mod.published_at is not None
     assert plugin.downloads == 12345
     assert rp.game_versions == ["1.21.1"]
     assert dp.downloads == 12345
@@ -134,16 +139,21 @@ def test_domain_field_isolation_and_bytes_validation():
     assert "environment" not in ResourcePack.model_fields
     assert "downloads" not in Server.model_fields
 
-    # Server convenience properties & nested ping latency.
+    # Server convenience properties & nested telemetry.
     assert server.address == "play.aerosmp.com"
     assert server.bedrock_address == "bedrock.aerosmp.com"
-    assert server.players_online == 27
-    assert server.players_max == 300
+    assert server.online_players == 27
+    assert server.max_players == 300
+    assert server.players == PlayerCount(online=27, max=300)
+    assert str(server.players) == "27/300"
+    assert server.latency_ms == pytest.approx(519.025823)
+    assert server.is_online is True
     assert server.region == "europe"
+    assert server.country == "DE"
+    assert server.languages == ["en"]
     assert server.mod_loaders == ["neoforge"]
     assert server.ping is not None
-    assert server.ping.data.latency is not None
-    assert server.ping.data.latency.milliseconds == pytest.approx(519.025823)
+    assert server.ping.checked_at is not None
     assert server.content is not None
     assert server.content.kind == "modpack"
 
@@ -152,11 +162,12 @@ def test_domain_field_isolation_and_bytes_validation():
     assert "_client" not in dumped
 
 
-def test_unbound_models_raise_clean_error():
+def test_unbound_models_and_summaries_raise_clean_error():
     mod = validate_json_model(Mod, _project_payload())
     server = validate_json_model(Server, _project_payload(project_types=["minecraft_java_server"]))
     async_mod = validate_json_model(AsyncMod, _project_payload())
     async_server = validate_json_model(AsyncServer, _project_payload(project_types=["minecraft_java_server"]))
+    mod_summary = validate_json_model(ModSummary, b'{"project_id":"AANobbMI","slug":"sodium","name":"Sodium"}')
 
     assert isinstance(async_mod, AsyncMod)
     assert isinstance(async_server, AsyncServer)
@@ -167,14 +178,22 @@ def test_unbound_models_raise_clean_error():
     with pytest.raises(OxirinthUnboundModelError):
         server.get_members()
 
+    with pytest.raises(OxirinthUnboundModelError):
+        mod_summary.fetch()
+
 
 async def test_unbound_async_models_raise_clean_error():
     async_plugin = validate_json_model(AsyncPlugin, _project_payload(project_types=["plugin"]))
+    async_summary = validate_json_model(AsyncModSummary, b'{"project_id":"AANobbMI","slug":"sodium","name":"Sodium"}')
+
     with pytest.raises(OxirinthUnboundModelError):
         await async_plugin.get_dependencies()
 
+    with pytest.raises(OxirinthUnboundModelError):
+        await async_summary.fetch()
 
-def test_search_result_and_version_primary_file():
+
+def test_search_page_iteration_and_version_file_helpers():
     search_bytes = json.dumps(
         {
             "hits": [
@@ -194,14 +213,26 @@ def test_search_result_and_version_primary_file():
             ],
             "page": 1,
             "hits_per_page": 10,
-            "total_hits": 1,
+            "total_hits": 25,
         }
     ).encode("utf-8")
 
-    result = validate_search_result(ModHit, search_bytes)
-    assert result.total_hits == 1
-    assert isinstance(result.hits[0], ModHit)
-    assert result.hits[0].loaders == ["fabric"]
+    result = validate_search_page(ModSummary, search_bytes)
+    assert isinstance(result, SearchPage)
+    assert result.total == 25
+    assert result.per_page == 10
+    assert result.page == 1
+    assert result.has_next is True
+    assert len(result) == 1
+    assert bool(result) is True
+    assert isinstance(result[0], ModSummary)
+    assert result.first == result[0]
+    assert list(result) == [result[0]]
+    assert result[:1] == [result[0]]
+    assert result[0].id == "AANobbMI"
+    assert result[0].latest_version_id == "v1"
+    assert result[0].followers == 50
+    assert result[0].loaders == ["fabric"]
 
     server_search_bytes = json.dumps(
         {
@@ -211,7 +242,15 @@ def test_search_result_and_version_primary_file():
                     "slug": "aero-server",
                     "name": "Aero SMP",
                     "mrpack_loaders": ["neoforge"],
-                    "minecraft_java_server": {"address": "play.aerosmp.com", "ping": None},
+                    "minecraft_server": {"max_players": 300, "region": "europe", "languages": ["en"]},
+                    "minecraft_java_server": {
+                        "address": "play.aerosmp.com",
+                        "ping": {
+                            "when": "2026-11-20T03:00:00Z",
+                            "address": "play.aerosmp.com",
+                            "data": {"players_online": 27, "players_max": 300},
+                        },
+                    },
                 }
             ],
             "page": 1,
@@ -219,9 +258,17 @@ def test_search_result_and_version_primary_file():
             "total_hits": 1,
         }
     ).encode("utf-8")
-    srv_res = validate_search_result(ServerHit, server_search_bytes)
-    assert srv_res.hits[0].address == "play.aerosmp.com"
-    assert srv_res.hits[0].mod_loaders == ["neoforge"]
+    srv_page = validate_search_page(ServerSummary, server_search_bytes)
+    assert srv_page.has_next is False
+    assert isinstance(srv_page[0], ServerSummary)
+    assert srv_page[0].id == "OgcNPs6n"
+    assert srv_page[0].address == "play.aerosmp.com"
+    assert srv_page[0].mod_loaders == ["neoforge"]
+    assert srv_page[0].online_players == 27
+    assert srv_page[0].max_players == 300
+    assert srv_page[0].players == PlayerCount(online=27, max=300)
+    assert srv_page[0].region == "europe"
+    assert srv_page[0].is_online is True
 
     version = validate_json_model(
         Version,
@@ -252,8 +299,11 @@ def test_search_result_and_version_primary_file():
             }
         ).encode("utf-8"),
     )
+    assert version.published_at is not None
     assert version.primary_file is not None
     assert version.primary_file.filename == "b.jar"
+    assert version.primary_file.sha512 == "222"
+    assert version.primary_file.sha1 == "111"
 
 
 def test_user_agent_defaults_and_builder():
@@ -271,3 +321,14 @@ def test_user_agent_defaults_and_builder():
 
     with pytest.raises(OxirinthConfigError):
         build_user_agent("my-cli", "1.0\n0")
+
+
+def test_v3_loader_field_game_version_tag_parsing():
+    tag = validate_json_model(
+        GameVersionTag,
+        b'{"value": "1.21.1", "type": "release", "created": "2024-08-08T00:00:00Z", "major": true}',
+    )
+    assert tag.version == "1.21.1"
+    assert tag.version_type == "release"
+    assert tag.released_at is not None
+    assert tag.major is True
