@@ -1,0 +1,51 @@
+[project]
+site_name = "Oxirinth"
+site_description = "High-performance Python SDK for the Modrinth API v3, powered by Rust and Pydantic v2."
+site_author = "Henrique Moreira"
+repo_url = "https://github.com/henrique-coder/oxirinth"
+site_url = "https://oxirinth.readthedocs.io"
+
+nav = [
+    { "Home" = "index.md" },
+    { "Modrinth API v3 Reference" = "api/v3-endpoints.md" },
+]
+
+[project.theme]
+features = [
+    "navigation.instant",
+    "navigation.tracking",
+    "navigation.sections",
+    "navigation.expand",
+    "navigation.top",
+    "toc.follow",
+    "content.code.copy",
+    "content.code.annotate",
+]
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "green"
+accent = "teal"
+toggle.icon = "material/weather-sunny"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "green"
+accent = "teal"
+toggle.icon = "material/weather-night"
+toggle.name = "Switch to dark mode"
+
+[project.markdown_extensions]
+admonition = {}
+pymdownx.details = {}
+pymdownx.superfences = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.snippets = {}
+pymdownx.tabbed.alternate_style = true
