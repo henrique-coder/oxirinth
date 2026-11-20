@@ -2,6 +2,11 @@
 
 use std::sync::Once;
 
+pub mod config;
+pub mod domain;
+pub mod error;
+pub mod routes;
+
 /// Semantic version of the internal `oxirinth-engine` crate.
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
