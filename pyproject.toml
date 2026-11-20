@@ -7,7 +7,7 @@ build-backend = "maturin"
 [project]
 name = "oxirinth"
 version = "0.1.0"
-description = "High-performance Python SDK for the Modrinth API v3, powered by Rust and Pydantic v2."
+description = "High-performance Python SDK for the Modrinth API v3, powered by Rust."
 authors = [
     { name = "Henrique Moreira", email = "78804989+henrique-coder@users.noreply.github.com" },
 ]

@@ -1,6 +1,6 @@
 # Oxirinth
 
-Typed Python SDK for the Modrinth API v3 (`https://api.modrinth.com/v3`), backed by a Rust transport and cache engine and Pydantic v2 models.
+High-performance Python SDK for the Modrinth API v3 (`https://api.modrinth.com/v3`), powered by Rust.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.11–3.15](https://img.shields.io/badge/python-3.11%20%E2%80%93%203.15%20%7C%20free--threaded-blue.svg)](pyproject.toml)

@@ -1,6 +1,6 @@
 [project]
 site_name = "Oxirinth"
-site_description = "High-performance Python SDK for the Modrinth API v3, powered by Rust and Pydantic v2."
+site_description = "High-performance Python SDK for the Modrinth API v3, powered by Rust."
 site_author = "Henrique Moreira"
 repo_url = "https://github.com/henrique-coder/oxirinth"
 site_url = "https://oxirinth.readthedocs.io"
